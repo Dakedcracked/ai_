@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OncoScan Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-50 min-h-screen">
+    <header class="bg-indigo-700 text-white p-4 flex justify-between items-center">
+      <h1 class="text-xl font-semibold">OncoScan Admin</h1>
+      <div class="space-x-3">
+        <span id="adminName" class="text-sm"></span>
+        <button id="logoutBtn" class="bg-red-500 px-3 py-1 rounded">Logout</button>
+      </div>
+    </header>
+    <main class="max-w-6xl mx-auto p-6 space-y-6">
+      <section class="bg-white rounded shadow p-4">
+        <h2 class="text-lg font-medium mb-3">Company Profile</h2>
+        <form id="companyForm" class="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <input id="c_name" class="border rounded p-2" placeholder="Company Name" />
+          <input id="c_address" class="border rounded p-2" placeholder="Address" />
+          <input id="c_email" class="border rounded p-2" placeholder="Contact Email" />
+          <input id="c_logo" class="border rounded p-2" placeholder="Logo URL" />
+          <button class="bg-indigo-600 text-white px-3 py-2 rounded md:col-span-1" type="submit">Save</button>
+        </form>
+      </section>
+
+      <section class="bg-white rounded shadow p-4">
+        <h2 class="text-lg font-medium mb-3">Users</h2>
+        <form id="userForm" class="grid grid-cols-1 md:grid-cols-5 gap-3">
+          <input id="u_username" class="border rounded p-2" placeholder="Username" />
+          <input id="u_fullname" class="border rounded p-2" placeholder="Full name" />
+          <input id="u_password" type="password" class="border rounded p-2" placeholder="Password" />
+          <select id="u_role" class="border rounded p-2">
+            <option value="doctor">Doctor</option>
+            <option value="admin">Admin</option>
+          </select>
+          <button class="bg-green-600 text-white px-3 py-2 rounded" type="submit">Create</button>
+        </form>
+        <div class="mt-4">
+          <table class="min-w-full text-sm">
+            <thead><tr class="text-left text-gray-500"><th class="px-2">User</th><th class="px-2">Role</th></tr></thead>
+            <tbody id="usersTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="bg-white rounded shadow p-4">
+        <h2 class="text-lg font-medium mb-3">Recent Audits</h2>
+        <pre id="auditsBox" class="bg-gray-100 p-3 rounded max-h-72 overflow-auto text-xs"></pre>
+      </section>
+    </main>
+
+    <script>
+      const API = 'http://127.0.0.1:8000';
+      const token = localStorage.getItem('oncoscan_token');
+      if (!token) location.href = 'index.html';
+
+      async function me() {
+        const r = await fetch(API + '/users/me', { headers: { Authorization: 'Bearer ' + token } });
+        if (r.status !== 200) { localStorage.removeItem('oncoscan_token'); location.href='index.html'; return; }
+        const j = await r.json();
+        if (j.role !== 'admin') { location.href = 'doctor_dashboard.html'; return; }
+        document.getElementById('adminName').textContent = j.username + ' (admin)';
+      }
+
+      async function loadCompany() {
+        const r = await fetch(API + '/admin/company', { headers: { Authorization: 'Bearer ' + token }});
+        if (!r.ok) return;
+        const j = await r.json();
+        const c = j.company || {};
+        document.getElementById('c_name').value = c.name || '';
+        document.getElementById('c_address').value = c.address || '';
+        document.getElementById('c_email').value = c.contact_email || '';
+        document.getElementById('c_logo').value = c.logo_url || '';
+      }
+
+      async function saveCompany(e){ e.preventDefault();
+        const body = { name: c_name.value, address: c_address.value, contact_email: c_email.value, logo_url: c_logo.value };
+        await fetch(API + '/admin/company', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(body)});
+      }
+
+      async function createUser(e){ e.preventDefault();
+        const body = { username: u_username.value, full_name: u_fullname.value, password: u_password.value, role: u_role.value };
+        await fetch(API + '/admin/users', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(body)});
+        await loadUsers();
+      }
+
+      async function loadUsers(){
+        const r = await fetch(API + '/admin/users', { headers: { Authorization: 'Bearer ' + token }});
+        const users = await r.json();
+        const tbody = document.getElementById('usersTable');
+        tbody.innerHTML = '';
+        users.forEach(u => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td class="px-2 py-1">${u.username}</td><td class="px-2 py-1">${u.role}</td>`;
+          tbody.appendChild(tr);
+        });
+      }
+
+      async function loadAudits(){
+        const r = await fetch(API + '/admin/audits?limit=100', { headers: { Authorization: 'Bearer ' + token }});
+        const arr = await r.json();
+        auditsBox.textContent = JSON.stringify(arr, null, 2);
+      }
+
+      logoutBtn.onclick = () => { localStorage.removeItem('oncoscan_token'); location.href = 'index.html'; }
+      companyForm.onsubmit = saveCompany;
+      userForm.onsubmit = createUser;
+
+      (async function(){
+        await me();
+        await loadCompany();
+        await loadUsers();
+        await loadAudits();
+      })();
+    </script>
+  </body>
+  </html>

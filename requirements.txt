@@ -1,0 +1,11 @@
+fastapi>=0.95
+uvicorn[standard]>=0.22
+passlib[bcrypt]>=1.7
+python-jose[cryptography]>=3.3
+pydantic>=1.10
+pytest>=7.0
+Pillow>=10.0
+pydicom>=2.4
+numpy>=1.26
+sqlmodel>=0.0.21
+psycopg2-binary>=2.9

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OncoScan Doctor Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-50 min-h-screen">
+    <header class="bg-green-700 text-white p-4 flex justify-between items-center">
+      <h1 class="text-xl font-semibold">OncoScan Doctor</h1>
+      <div class="space-x-3">
+        <span id="docName" class="text-sm"></span>
+        <button id="logoutBtn" class="bg-red-500 px-3 py-1 rounded">Logout</button>
+      </div>
+    </header>
+    <main class="max-w-5xl mx-auto p-6 space-y-6">
+      <section class="bg-white rounded shadow p-4">
+        <h2 class="text-lg font-medium mb-3">Upload Scan</h2>
+        <form id="uploadForm" class="space-y-3">
+          <input id="fileInput" type="file" accept="image/*,.dcm" />
+          <button class="bg-green-600 text-white px-3 py-2 rounded" type="submit">Upload & Predict</button>
+        </form>
+      </section>
+
+      <section class="bg-white rounded shadow p-4">
+        <h2 class="text-lg font-medium mb-3">Last Result</h2>
+        <pre id="resultBox" class="bg-gray-100 p-3 rounded max-h-80 overflow-auto text-xs"></pre>
+      </section>
+    </main>
+
+    <script>
+      const API = 'http://127.0.0.1:8000';
+      const token = localStorage.getItem('oncoscan_token');
+      if (!token) location.href = 'index.html';
+
+      async function me() {
+        const r = await fetch(API + '/users/me', { headers: { Authorization: 'Bearer ' + token } });
+        if (r.status !== 200) { localStorage.removeItem('oncoscan_token'); location.href='index.html'; return; }
+        const j = await r.json();
+        if (j.role === 'admin') { location.href = 'admin.html'; return; }
+        docName.textContent = j.username + ' (doctor)';
+      }
+
+      uploadForm.onsubmit = async (e) => {
+        e.preventDefault();
+        const f = document.getElementById('fileInput');
+        if (!f.files.length) { alert('Choose a file'); return; }
+        const form = new FormData();
+        form.append('file', f.files[0], f.files[0].name);
+        const r = await fetch(API + '/predict', { method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: form });
+        if (r.status === 401) { localStorage.removeItem('oncoscan_token'); location.href = 'index.html'; return; }
+        const j = await r.json();
+        resultBox.textContent = JSON.stringify(j, null, 2);
+      }
+
+      logoutBtn.onclick = () => { localStorage.removeItem('oncoscan_token'); location.href = 'index.html'; }
+
+      (async function(){ await me(); })();
+    </script>
+  </body>
+  </html>
